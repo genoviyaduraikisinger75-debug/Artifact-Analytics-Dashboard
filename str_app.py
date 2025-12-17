@@ -8,7 +8,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🏛️ Artifact Analytics Dashboard")
+st.title("Artifact Analytics Dashboard")
 st.write("Interactive Streamlit UI with 25 SQL Queries")
 
 # DATABASE CONNECTION
@@ -118,7 +118,7 @@ queries = {
 }
 
 # SIDEBAR
-st.sidebar.header("📊 Select SQL Query")
+st.sidebar.header("Select SQL Query")
 query_name = st.sidebar.selectbox(
     "Choose a query",
     list(queries.keys())
@@ -139,7 +139,7 @@ col3.metric("Query No", query_name.split(".")[0])
 
 # TABS
 
-tab1, tab2, tab3 = st.tabs(["📋 Table", "📊 Chart", "🧠 SQL"])
+tab1, tab2, tab3 = st.tabs(["Table", "Chart", "SQL"])
 
 with tab1:
     st.dataframe(df, use_container_width=True)
@@ -156,3 +156,4 @@ with tab3:
 
 
 conn.close()
+
