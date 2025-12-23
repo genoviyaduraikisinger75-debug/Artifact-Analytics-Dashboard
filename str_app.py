@@ -22,20 +22,15 @@ st.markdown(
 
 # UI – CLASSIFICATION (UI ONLY)
 
-classification = st.selectbox(
-    "Select Classification",
-    [
-        "Coins", "Paintings", "Sculpture", "Drawings",
-        "Jewelry", "Textile Arts", "Furniture", "Manuscripts"
-    ]
-)
+classification = st.text_input("Enter a classification:") # Coins, Vessels, Paintings
+button = st.button("Collect data")
 
-st.markdown("<h3 style='text-align:center;'>Select Your Choice</h3>",
-            unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: black;'> Harvard’s Artifacts Collection</h1>", unsafe_allow_html=True)
 
-col1, col2 = st.columns(2)
-col1.button("Migrate to SQL", use_container_width=True)
-col2.button("SQL Queries", use_container_width=True)
+col1, col2, col3 = st.columns(3)
+col1.button("Select Your Choice", use_container_width=True)
+col2.button("Migrate to SQL", use_container_width=True)
+col3.button("SQL Queries", use_container_width=True)
 
 st.markdown("---")
 
