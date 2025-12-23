@@ -2,16 +2,8 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 
-# PAGE CONFIG
-st.set_page_config(
-    page_title="Artifact SQL Dashboard",
-    layout="wide"
-)
-
-st.title("Artifact Analytics Dashboard")
-st.write("Interactive Streamlit UI with 25 SQL Queries")
-
 # DATABASE CONNECTION
+
 conn = mysql.connector.connect(
     host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
     user="3gxYKPf9j9ttPYR.root",
@@ -20,7 +12,35 @@ conn = mysql.connector.connect(
     port=4000
 )
 
+# STREAMLIT PAGE CONFIG
+
+st.set_page_config(page_title="Harvard Artifacts", layout="wide")
+st.markdown(
+    "<h1 style='text-align:center;'>Harvard’s Artifacts Collection</h1>",
+    unsafe_allow_html=True
+)
+
+# UI – CLASSIFICATION (UI ONLY)
+
+classification = st.selectbox(
+    "Select Classification",
+    [
+        "Coins", "Paintings", "Sculpture", "Drawings",
+        "Jewelry", "Textile Arts", "Furniture", "Manuscripts"
+    ]
+)
+
+st.markdown("<h3 style='text-align:center;'>Select Your Choice</h3>",
+            unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+col1.button("Migrate to SQL", use_container_width=True)
+col2.button("SQL Queries", use_container_width=True)
+
+st.markdown("---")
+
 # SQL QUERIES (25)
+
 queries = {
     "1. German – 20th Century":
         "SELECT * FROM metadata WHERE culture='German' AND century='20th century';",
@@ -117,14 +137,16 @@ queries = {
            LEFT JOIN colors c ON m.id = c.objectid;"""
 }
 
-# SIDEBAR
+# SIDEBAR – SELECT QUERY 
+
 st.sidebar.header("Select SQL Query")
 query_name = st.sidebar.selectbox(
     "Choose a query",
     list(queries.keys())
 )
 
-# RUN QUERY
+# RUN QUERY 
+
 try:
     df = pd.read_sql(queries[query_name], conn)
 except Exception as e:
@@ -132,14 +154,14 @@ except Exception as e:
     st.stop()
 
 # METRICS
-col1, col2, col3 = st.columns(3)
-col1.metric("Rows", len(df))
-col2.metric("Columns", len(df.columns))
-col3.metric("Query No", query_name.split(".")[0])
 
-# TABS
+c1, c2, c3 = st.columns(3)
+c1.metric("Rows", len(df))
+c2.metric("Columns", len(df.columns))
+c3.metric("Query No", query_name.split(".")[0])
 
-tab1, tab2, tab3 = st.tabs(["Table", "Chart", "SQL"])
+#TABS
+tab1, tab2, tab3 = st.tabs(["📋 Table", "📊 Chart", "🧠 SQL"])
 
 with tab1:
     st.dataframe(df, use_container_width=True)
@@ -154,6 +176,6 @@ with tab2:
 with tab3:
     st.code(queries[query_name], language="sql")
 
+# CLOSE CONNECTION
 
 conn.close()
-
