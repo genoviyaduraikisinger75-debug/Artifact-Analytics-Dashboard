@@ -1,9 +1,18 @@
 import streamlit as st
+from api import classes
 import mysql.connector
 import pandas as pd
+from streamlit_option_menu import option_menu
+from api import artifacts_details
+
+# ✅ DEFINE API KEY HERE
+API_KEY = "1bd39d42-57ba-4902-99cf-5b8672d7c372"
+
+
+# PAGE CONFIG
+st.set_page_config(layout="wide")
 
 # DATABASE CONNECTION
-
 conn = mysql.connector.connect(
     host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
     user="3gxYKPf9j9ttPYR.root",
@@ -11,88 +20,120 @@ conn = mysql.connector.connect(
     database="artifacts",
     port=4000
 )
+cursor = conn.cursor()
 
-# STREAMLIT PAGE CONFIG
-
-st.set_page_config(page_title="Harvard Artifacts", layout="wide")
+# TITLE
 st.markdown(
-    "<h1 style='text-align:center;'>Harvard’s Artifacts Collection</h1>",
+    "<h1 style='text-align:center;'>🎨🏛️ Harvard’s Artifacts Collection</h1>",
     unsafe_allow_html=True
 )
 
-# UI – CLASSIFICATION (UI ONLY)
-
-classification = st.text_input("Enter a classification:") # Coins, Vessels, Paintings
+# INPUT
+classification = st.text_input("Enter a classification (Coins, Paintings, etc)")
 button = st.button("Collect data")
 
-st.markdown("<h1 style='text-align: center; color: black;'> Harvard’s Artifacts Collection</h1>", unsafe_allow_html=True)
+# OPTION MENU
+menu = option_menu(
+    None,
+    ["Select Your Choice", "Migrate to SQL", "SQL Queries"],
+    orientation="horizontal"
+)
 
-col1, col2, col3 = st.columns(3)
-col1.button("Select Your Choice", use_container_width=True)
-col2.button("Migrate to SQL", use_container_width=True)
-col3.button("SQL Queries", use_container_width=True)
+# MIGRATE TO SQL
+if menu == "Migrate to SQL":
 
-st.markdown("---")
+    cursor.execute("SELECT DISTINCT classification FROM metadata")
+    classes_list = [i[0] for i in cursor.fetchall()]
 
-# SQL QUERIES (25)
+    st.subheader("Insert the collected data")
 
-queries = {
-    "1. German – 20th Century":
-        "SELECT * FROM metadata WHERE culture='German' AND century='20th century';",
+    if st.button("Insert"):
+        if classification.strip() == "":
+            st.error("Please enter a classification first")
 
-    "2. Unique Cultures":
-        "SELECT DISTINCT culture FROM metadata;",
+        elif classification in classes_list:
+            st.error("Classification already exists! Try a different one.")
 
-    "3. Archaic Period":
-        "SELECT * FROM metadata WHERE period LIKE '%Archaic%';",
+        else:
+            records = classes(API_KEY, classification)
+            meta, med, col = artifacts_details(records)
+            insert_values(meta, med, col)
 
-    "4. Latest Accession":
-        "SELECT * FROM metadata ORDER BY accessionyear DESC;",
+            st.success("Data inserted successfully")
 
-    "5. Artifacts per Department":
-        "SELECT department, COUNT(*) AS total FROM metadata GROUP BY department;",
+            st.divider()
 
-    "6. Imagecount > 1":
-        "SELECT * FROM media WHERE imagecount > 1;",
+            # SHOW TABLES
+            for table in ["metadata", "media", "colors"]:
+                st.subheader(table.capitalize())
+                cursor.execute(f"SELECT * FROM {table}")
+                df = pd.DataFrame(
+                    cursor.fetchall(),
+                    columns=[i[0] for i in cursor.description]
+                )
+                st.dataframe(df)
 
-    "7. Average Rank":
-        "SELECT AVG(`rank`) AS avg_rank FROM media;",
+# SQL QUERIES
+elif menu == "SQL Queries":
 
-    "8. Artifacts (1500–1600)":
-        "SELECT * FROM media WHERE databegin BETWEEN 1500 AND 1600;",
+    st.subheader("SQL Queries")
 
-    "9. No Media Files":
-        "SELECT * FROM media WHERE mediacount = 0;",
+    SQL_QUERIES = {
+        "1. German – 20th Century":
+            "SELECT * FROM metadata WHERE culture='German' AND century='20th century';",
 
-    "10. Colorcount > Mediacount":
-        "SELECT * FROM media WHERE colorcount > mediacount;",
+        "2. Unique Cultures":
+            "SELECT DISTINCT culture FROM metadata;",
 
-    "11. Distinct Hues":
-        "SELECT DISTINCT hue FROM colors;",
+        "3. Archaic Period":
+            "SELECT * FROM metadata WHERE period LIKE '%Archaic%';",
 
-    "12. Top 5 Colors":
-        "SELECT color, COUNT(*) AS freq FROM colors GROUP BY color ORDER BY freq DESC LIMIT 5;",
+        "4. Latest Accession":
+            "SELECT title, accessionyear FROM metadata ORDER BY accessionyear DESC;",
 
-    "13. Avg Color Percent":
-        "SELECT AVG(CAST(percent AS DECIMAL(5,2))) AS avg_percent FROM colors;",
+        "5. Artifacts per Department":
+            "SELECT department, COUNT(*) AS total FROM metadata GROUP BY department;"
+        "6. Imagecount > 1" 
+            "SELECT * FROM media WHERE imagecount > 1;",
 
-    "14. Colors for Artifact 130808":
-        "SELECT * FROM colors WHERE objectid = 130808;",
+         "7. Average Rank":
+            "SELECT AVG(`rank`) AS avg_rank FROM media;",
 
-    "15. Total Colors Count":
-        "SELECT COUNT(*) AS total_colors FROM colors;",
+        "8. Artifacts (1500–1600)":
+            "SELECT * FROM media WHERE databegin BETWEEN 1500 AND 1600;",
 
-    "16. Titles + Hues":
-        "SELECT m.title, c.hue FROM metadata m JOIN colors c ON m.id = c.objectid;",
+        "9. No Media Files":
+           "SELECT * FROM media WHERE mediacount = 0;",
 
-    "17. Title + Culture + Rank":
-        """SELECT m.title, m.culture, md.rank
+        "10. Colorcount > Mediacount":
+            "SELECT * FROM media WHERE colorcount > mediacount;",
+
+        "11. Distinct Hues":
+            "SELECT DISTINCT hue FROM colors;",
+
+        "12. Top 5 Colors":
+            "SELECT color, COUNT(*) AS freq FROM colors GROUP BY color ORDER BY freq DESC LIMIT 5;",
+
+        "13. Avg Color Percent":
+             "SELECT AVG(CAST(percent AS DECIMAL(5,2))) AS avg_percent FROM colors;",
+
+        "14. Colors for Artifact 130808":
+             "SELECT * FROM colors WHERE objectid = 130808;",
+
+       "15. Total Colors Count":
+            "SELECT COUNT(*) AS total_colors FROM colors;",
+
+      "16. Titles + Hues":
+           "SELECT m.title, c.hue FROM metadata m JOIN colors c ON m.id = c.objectid;",
+
+      "17. Title + Culture + Rank":
+           """SELECT m.title, m.culture, md.rank
            FROM metadata m
            JOIN media md ON m.id = md.objectid
            WHERE m.period IS NOT NULL;""",
 
-    "18. Top 10 Grey Artifacts":
-        """SELECT m.title, md.rank
+      "18. Top 10 Grey Artifacts":
+           """SELECT m.title, md.rank
            FROM metadata m
            JOIN media md ON m.id = md.objectid
            JOIN colors c ON m.id = c.objectid
@@ -100,77 +141,52 @@ queries = {
            ORDER BY md.rank ASC
            LIMIT 10;""",
 
-    "19. Avg Media per Classification":
-        """SELECT m.classification, AVG(md.mediacount) AS avg_media
+      "19. Avg Media per Classification":
+           """SELECT m.classification, AVG(md.mediacount) AS avg_media
            FROM metadata m
            JOIN media md ON m.id = md.objectid
            GROUP BY m.classification;""",
+ 
+      "20. Count per Culture":
+          "SELECT culture, COUNT(*) AS total FROM metadata GROUP BY culture;",
+  
+      "21. All Artifact Titles":
+          "SELECT title FROM metadata;",
 
-    "20. Count per Culture":
-        "SELECT culture, COUNT(*) AS total FROM metadata GROUP BY culture;",
+      "22. Unique Colors":
+          "SELECT DISTINCT color FROM colors;",
 
-    "21. All Artifact Titles":
-        "SELECT title FROM metadata;",
+      "23. Artifacts per Department (Repeat)":
+          "SELECT department, COUNT(*) AS total FROM metadata GROUP BY department;",
 
-    "22. Unique Colors":
-        "SELECT DISTINCT color FROM colors;",
-
-    "23. Artifacts per Department (Repeat)":
-        "SELECT department, COUNT(*) AS total FROM metadata GROUP BY department;",
-
-    "24. Highest Media Count":
-        """SELECT m.title, md.mediacount
+      "24. Highest Media Count":
+           """SELECT m.title, md.mediacount
            FROM metadata m
            JOIN media md ON m.id = md.objectid
            ORDER BY md.mediacount DESC
            LIMIT 10;""",
 
-    "25. Full Joined Dataset":
-        """SELECT *
+      "25. Full Joined Dataset":
+           """SELECT *
            FROM metadata m
            JOIN media md ON m.id = md.objectid
            LEFT JOIN colors c ON m.id = c.objectid;"""
-}
+    }
 
-# SIDEBAR – SELECT QUERY 
+    query_name = st.selectbox(
+        "Select a query",
+        list(SQL_QUERIES.keys())
+    )
 
-st.sidebar.header("Select SQL Query")
-query_name = st.sidebar.selectbox(
-    "Choose a query",
-    list(queries.keys())
-)
+    if st.button("Run Query"):
+        query = SQL_QUERIES[query_name]
+        cursor.execute(query)
+        result = cursor.fetchall()
+        columns = [i[0] for i in cursor.description]
 
-# RUN QUERY 
+        df = pd.DataFrame(result, columns=columns)
+        st.dataframe(df)
 
-try:
-    df = pd.read_sql(queries[query_name], conn)
-except Exception as e:
-    st.error(f"Query failed: {e}")
-    st.stop()
-
-# METRICS
-
-c1, c2, c3 = st.columns(3)
-c1.metric("Rows", len(df))
-c2.metric("Columns", len(df.columns))
-c3.metric("Query No", query_name.split(".")[0])
-
-#TABS
-tab1, tab2, tab3 = st.tabs(["📋 Table", "📊 Chart", "🧠 SQL"])
-
-with tab1:
-    st.dataframe(df, use_container_width=True)
-
-with tab2:
-    numeric_df = df.select_dtypes(include=["int64", "float64"])
-    if not numeric_df.empty:
-        st.bar_chart(numeric_df.iloc[:, 0])
-    else:
-        st.info("No numeric data available for visualization.")
-
-with tab3:
-    st.code(queries[query_name], language="sql")
-
-# CLOSE CONNECTION
-
-conn.close()
+# DEFAULT SCREEN
+else:
+    st.info(" Please select an option from the menu")
